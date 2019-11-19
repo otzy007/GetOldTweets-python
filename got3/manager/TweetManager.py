@@ -3,14 +3,14 @@ from .. import models
 from pyquery import PyQuery
 
 class TweetManager:
-	
+
 	def __init__(self):
 		pass
-		
+
 	@staticmethod
 	def getTweets(tweetCriteria, receiveBuffer=None, bufferLength=100, proxy=None):
 		refreshCursor = ''
-	
+
 		results = []
 		resultsAux = []
 		cookieJar = http.cookiejar.CookieJar()
@@ -27,15 +27,14 @@ class TweetManager:
 			#Remove incomplete tweets withheld by Twitter Guidelines
 			scrapedTweets.remove('div.withheld-tweet')
 			tweets = scrapedTweets('div.js-stream-tweet')
-			
+
 			if len(tweets) == 0:
 				break
-			
+
 			for tweetHTML in tweets:
 				tweetPQ = PyQuery(tweetHTML)
 				tweet = models.Tweet()
-				
-				usernameTweet = tweetPQ("span.username.js-action-profile-name b").text()
+				usernameTweet = tweetPQ("span.username.u-dir.u-textTruncate b")[0].text
 				txt = re.sub(r"\s+", " ", tweetPQ("p.js-tweet-text").text().replace('# ', '#').replace('@ ', '@'))
 				retweets = int(tweetPQ("span.ProfileTweet-action--retweet span.ProfileTweet-actionCount").attr("data-tweet-stat-count").replace(",", ""))
 				favorites = int(tweetPQ("span.ProfileTweet-action--favorite span.ProfileTweet-actionCount").attr("data-tweet-stat-count").replace(",", ""))
@@ -43,7 +42,7 @@ class TweetManager:
 				id = tweetPQ.attr("data-tweet-id")
 				permalink = tweetPQ.attr("data-permalink-path")
 				user_id = int(tweetPQ("a.js-user-profile-link").attr("data-user-id"))
-				
+				avatar = tweetPQ("img.avatar").attr['src']
 				geo = ''
 				geoSpan = tweetPQ('span.Tweet-geo')
 				if len(geoSpan) > 0:
@@ -57,7 +56,7 @@ class TweetManager:
 				tweet.id = id
 				tweet.permalink = 'https://twitter.com' + permalink
 				tweet.username = usernameTweet
-				
+
 				tweet.text = txt
 				tweet.date = datetime.datetime.fromtimestamp(dateSec)
 				tweet.formatted_date = datetime.datetime.fromtimestamp(dateSec).strftime("%a %b %d %X +0000 %Y")
@@ -68,41 +67,42 @@ class TweetManager:
 				tweet.geo = geo
 				tweet.urls = ",".join(urls)
 				tweet.author_id = user_id
-				
+				tweet.avatar = avatar
+
 				results.append(tweet)
 				resultsAux.append(tweet)
-				
+
 				if receiveBuffer and len(resultsAux) >= bufferLength:
 					receiveBuffer(resultsAux)
 					resultsAux = []
-				
+
 				if tweetCriteria.maxTweets > 0 and len(results) >= tweetCriteria.maxTweets:
 					active = False
 					break
-					
-		
+
+
 		if receiveBuffer and len(resultsAux) > 0:
 			receiveBuffer(resultsAux)
-		
+
 		return results
-	
+
 	@staticmethod
 	def getJsonReponse(tweetCriteria, refreshCursor, cookieJar, proxy):
 		url = "https://twitter.com/i/search/timeline?f=tweets&q=%s&src=typd&%smax_position=%s"
-		
+
 		urlGetData = ''
 		if hasattr(tweetCriteria, 'username'):
 			urlGetData += ' from:' + tweetCriteria.username
-			
+
 		if hasattr(tweetCriteria, 'since'):
 			urlGetData += ' since:' + tweetCriteria.since
-			
+
 		if hasattr(tweetCriteria, 'until'):
 			urlGetData += ' until:' + tweetCriteria.until
-			
+
 		if hasattr(tweetCriteria, 'querySearch'):
 			urlGetData += ' ' + tweetCriteria.querySearch
-			
+
 		if hasattr(tweetCriteria, 'lang'):
 			urlLang = 'lang=' + tweetCriteria.lang + '&'
 		else:
@@ -135,7 +135,7 @@ class TweetManager:
 			print("Unexpected error:", sys.exc_info()[0])
 			sys.exit()
 			return
-		
+
 		dataJson = json.loads(jsonResponse.decode())
-		
-		return dataJson		
+
+		return dataJson
