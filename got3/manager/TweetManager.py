@@ -118,7 +118,7 @@ class TweetManager:
 					continue
 
 				time = int(replyPQ("div div.content div.stream-item-header small.time a.tweet-timestamp span").attr("data-time"))
-				likes = int(replyPQ("div div.content div.stream-item-footer div span.ProfileTweet-action--favorite span.ProfileTweet-actionCount").attr("data-tweet-stat-count"))
+				favorites = int(replyPQ("div div.content div.stream-item-footer div span.ProfileTweet-action--favorite span.ProfileTweet-actionCount").attr("data-tweet-stat-count"))
 				retweets = int(replyPQ("div div.content div.stream-item-footer div span.ProfileTweet-action--retweet span.ProfileTweet-actionCount").attr("data-tweet-stat-count"))
 
 				reply.replying_to_tweet_id = int(replyPQ("div ").attr("data-conversation-id"))
@@ -127,7 +127,7 @@ class TweetManager:
 				reply.permalink = "https://twitter.com" + replyPQ("div ").attr("data-permalink-path")
 				reply.owner_username = replyPQ("div ").attr("data-screen-name").lower()
 				reply.published_at = time
-				reply.likes = likes
+				reply.favorites = favorites
 				reply.retweets = retweets
 
 				results.append(reply)
