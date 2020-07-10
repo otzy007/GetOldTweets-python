@@ -2,6 +2,9 @@ import urllib.request, urllib.parse, urllib.error,urllib.request,urllib.error,ur
 from .. import models
 from pyquery import PyQuery
 
+FILTER_TWEETS = "tweets"
+FILTER_REPLIES = "replies"
+
 class TweetManager:
 
 	def __init__(self):
@@ -18,7 +21,7 @@ class TweetManager:
 		active = True
 
 		while active:
-			json = TweetManager.getJsonReponse(tweetCriteria, refreshCursor, cookieJar, proxy)
+			json = TweetManager.getJsonReponse(FILTER_TWEETS, tweetCriteria, refreshCursor, cookieJar, proxy)
 			if len(json['items_html'].strip()) == 0:
 				break
 
@@ -89,12 +92,62 @@ class TweetManager:
 		return results
 
 	@staticmethod
-	def getJsonReponse(tweetCriteria, refreshCursor, cookieJar, proxy):
-		url = "https://twitter.com/i/search/timeline?f=tweets&q=%s&src=typd&%smax_position=%s"
+	def getReplies(tweetCriteria, receiveBuffer=None, bufferLength=100, proxy=None):
+		refreshCursor = ''
+		results = []
+		resultsAux = []
+		cookieJar = http.cookiejar.CookieJar()
+		active = True
+		while active:
+			json = TweetManager.getJsonReponse(FILTER_REPLIES, tweetCriteria, refreshCursor, cookieJar, proxy)
+			if len(json['items_html'].strip()) == 0:
+				break
+
+			refreshCursor = json['min_position']
+			scrapedTweets = PyQuery(json['items_html'])
+			scrapedTweets.remove('li.AdaptiveStreamUserGallery')
+			replies = scrapedTweets('li.js-stream-item')
+
+			if len(replies) == 0:
+				break
+
+			for replyHTML in replies:
+				replyPQ = PyQuery(replyHTML)
+				reply = models.Reply()
+				if replyPQ("div ").attr("data-is-reply-to") != "true":
+					continue
+
+				time = int(replyPQ("div div.content div.stream-item-header small.time a.tweet-timestamp span").attr("data-time"))
+				likes = int(replyPQ("div div.content div.stream-item-footer div span.ProfileTweet-action--favorite span.ProfileTweet-actionCount").attr("data-tweet-stat-count"))
+				retweets = int(replyPQ("div div.content div.stream-item-footer div span.ProfileTweet-action--retweet span.ProfileTweet-actionCount").attr("data-tweet-stat-count"))
+
+				reply.replying_to_tweet_id = int(replyPQ("div ").attr("data-conversation-id"))
+				reply.current_tweet_id = int(replyPQ("div ").attr("data-tweet-id"))
+				reply.text = replyPQ("div div.content div.js-tweet-text-container p").text()
+				reply.permalink = "https://twitter.com" + replyPQ("div ").attr("data-permalink-path")
+				reply.owner_username = replyPQ("div ").attr("data-screen-name").lower()
+				reply.published_at = time
+				reply.likes = likes
+				reply.retweets = retweets
+
+				results.append(reply)
+				resultsAux.append(reply)
+
+		if receiveBuffer and len(resultsAux) > 0:
+			receiveBuffer(resultsAux)
+
+		return results
+
+	@staticmethod
+	def getJsonReponse(filterItems, tweetCriteria, refreshCursor, cookieJar, proxy):
+		url = "https://twitter.com/i/search/timeline?f=%s&q=%s&src=typd&%smax_position=%s"
 
 		urlGetData = ''
 		if hasattr(tweetCriteria, 'username'):
-			urlGetData += ' from:' + tweetCriteria.username
+			if filterItems == FILTER_TWEETS:
+				urlGetData += ' from:' + tweetCriteria.username
+			if filterItems == FILTER_REPLIES:
+				urlGetData += ' to:' + tweetCriteria.username
 
 		if hasattr(tweetCriteria, 'since'):
 			urlGetData += ' since:' + tweetCriteria.since
@@ -109,7 +162,7 @@ class TweetManager:
 			urlLang = 'lang=' + tweetCriteria.lang + '&'
 		else:
 			urlLang = ''
-		url = url % (urllib.parse.quote(urlGetData), urlLang, refreshCursor)
+		url = url % (filterItems, urllib.parse.quote(urlGetData), urlLang, refreshCursor)
 		#print(url)
 
 		headers = [
