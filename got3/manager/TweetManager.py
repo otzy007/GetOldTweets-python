@@ -118,9 +118,10 @@ class TweetManager:
 					continue
 
 				time = int(replyPQ("div div.content div.stream-item-header small.time a.tweet-timestamp span").attr("data-time"))
-				favorites = int(replyPQ("div div.content div.stream-item-footer div span.ProfileTweet-action--favorite span.ProfileTweet-actionCount").attr("data-tweet-stat-count"))
-				retweets = int(replyPQ("div div.content div.stream-item-footer div span.ProfileTweet-action--retweet span.ProfileTweet-actionCount").attr("data-tweet-stat-count"))
-
+				favorites = int(replyPQ("div div.content div.stream-item-footer div span.ProfileTweet-action--favorite span.ProfileTweet-actionCount").attr("data-tweet-stat-count").replace(",", ""))
+				retweets = int(replyPQ("div div.content div.stream-item-footer div span.ProfileTweet-action--retweet span.ProfileTweet-actionCount").attr("data-tweet-stat-count").replace(",", ""))
+				replies = int(replyPQ("div div.content div.stream-item-footer div span.ProfileTweet-action--reply span.ProfileTweet-actionCount").attr("data-tweet-stat-count").replace(",", ""))
+				
 				reply.replying_to_tweet_id = int(replyPQ("div ").attr("data-conversation-id"))
 				reply.current_tweet_id = int(replyPQ("div ").attr("data-tweet-id"))
 				reply.text = replyPQ("div div.content div.js-tweet-text-container p").text()
@@ -129,6 +130,7 @@ class TweetManager:
 				reply.published_at = time
 				reply.favorites = favorites
 				reply.retweets = retweets
+				reply.replies = replies
 
 				results.append(reply)
 				resultsAux.append(reply)
